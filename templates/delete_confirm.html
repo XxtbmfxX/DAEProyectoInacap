@@ -1,0 +1,9 @@
+{% extends 'main.html' %} {% block content %}
+<h2>Eliminar Cliente</h2>
+<p>¿Está seguro de que desea eliminar a {{ cliente.nombre }}?</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Eliminar</button>
+  <a href="{% url 'read_clientes' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

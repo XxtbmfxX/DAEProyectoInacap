@@ -1,0 +1,52 @@
+{% extends 'main.html' %} {% block content %}
+<h2>Lista de Clientes</h2>
+<form method="get">
+  <input
+    type="text"
+    name="q"
+    value="{{ query }}"
+    placeholder="Buscar cliente"
+    class="form-control mb-2"
+  />
+  <button type="submit" class="btn btn-secondary">Buscar</button>
+</form>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Teléfono</th>
+      <th>Fecha de Ingreso</th>
+      {% if user.is_superuser %}
+
+      <th>Eliminar</th>
+      {% else %} {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for cliente in clientes %}
+    <tr>
+      <td>
+        {% if user.is_superuser %}
+
+        <a href="{% url 'update_cliente' cliente.id %}">
+          {{ cliente.nombre }}
+        </a>
+        {% else %} {{ cliente.nombre }} {% endif %}
+      </td>
+      <td>{{ cliente.telefono }}</td>
+      <td>{{ cliente.fecha_ingreso }}</td>
+
+      {% if user.is_superuser %}
+      <td>
+        <a href="{% url 'delete_cliente' cliente.id %}"> <button class="btn btn-danger" >Eliminar</button> </a>
+        {% else %} {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="3">No hay datos disponibles</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
