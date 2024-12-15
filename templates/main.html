@@ -18,20 +18,14 @@
         <p>Usuario actual: {{ user.username }}</p>
       </div>
       <div>
-        <a href="{% url 'read_clientes' %}" class="btn btn-secondary"
-          >Leer Clientes</a
-        >
         {% if user.is_superuser %}
-        <a href="{% url 'create_cliente' %}" class="btn btn-secondary"
-          >Crear Cliente</a
-        >
+        <a href="{% url 'crear_prestamo' %}" class="btn btn-secondary">Crear Prestamo</a>
         {% endif %}
         <form method="post" action="{% url 'logout' %}" class="">
           {% csrf_token %}
           <button type="submit" class="btn btn-danger">Cerrar sesión</button>
         </form>
         <a href="{% url 'home' %}" class="btn btn-secondary">Home</a>
-
       </div>
     </header>
     <!-- CONTENIDO PRIMNCIPAL -->
