@@ -1,10 +1,9 @@
 from django.db import models
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.exceptions import ValidationError
-from datetime import date
-
+from django.utils.timezone import now
 from itertools import cycle
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 
 def validar_rut(rut):
@@ -58,7 +57,7 @@ class Alumno(models.Model):
     def clean(self):
         # Validar el RUT
         if not validar_rut(self.rut):
-            raise ValidationError("El RUT ingresado no es válido.")
+            raise ValidationError({"rut": "El RUT ingresado no es válido."})
 
     def __str__(self):
         return f"{self.nombre} {self.apellido} - {self.rut}"
@@ -77,59 +76,92 @@ class JuegoDeMesa(ElementoDAE):
     pass
 
 
-# Modelo Prestamo usando GenericForeignKey
+# Modelo Prestamo
 class Prestamo(models.Model):
-    alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE)
-    fecha_inicio = models.DateField()
-    fecha_termino = models.DateField()
+    id = models.AutoField(primary_key=True)  # Campo ID automático y secuencial
 
+    alumno = models.ForeignKey(
+        Alumno, on_delete=models.CASCADE, related_name="prestamos"
+    )
+    fecha_prestamo = models.DateTimeField(default=now)
+    fecha_devolucion = models.DateTimeField(null=True, blank=True)
+    # AlementoDAE no se crea en la base de datos por lo cual daría error en caso de hacer esta relación
+    # elemento = models.ForeignKey(
+    #     ElementoDAE,  # Relación genérica para libros y juegos
+    #     on_delete=models.CASCADE,
+    #     related_name="prestamos",
+    # )
+    # Conviene crear este tipo de relación
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     elemento = GenericForeignKey("content_type", "object_id")
 
-    def clean(self):
-        # Validar que la fecha de término no sea anterior a la de inicio
-        if self.fecha_termino < self.fecha_inicio:
-            raise ValidationError(
-                "La fecha de término no puede ser anterior a la fecha de inicio."
-            )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-        # Validar que el elemento no esté prestado
-        if self.elemento.prestado:
-            raise ValidationError(
-                f"El elemento '{self.elemento.nombre}' ya está prestado."
+    class Meta:
+        indexes = [
+            models.Index(fields=["fecha_prestamo"]),
+            models.Index(fields=["fecha_devolucion"]),
+            models.Index(fields=["alumno", "elemento"]),
+            models.Index(fields=["alumno"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["elemento", "alumno"],
+                name="unique_prestamo_activo",
+                condition=models.Q(fecha_devolucion__isnull=True),
             )
-
-    def save(self, *args, **kwargs):
-        self.clean()  # Ejecuta las validaciones
-        self.elemento.prestar()  # Marca el elemento como prestado
-        super().save(*args, **kwargs)
+        ]
 
     def devolver(self):
-        # Marca el elemento como devuelto y guarda el historial
+        """Marca el préstamo como devuelto"""
+        if self.fecha_devolucion:
+            raise ValidationError("Este préstamo ya fue devuelto.")
+
+        # Marcar elemento como no prestado
         self.elemento.devolver()
+
+        # Registrar la fecha de devolución
+        self.fecha_devolucion = now()
+        self.save()
+
+        # Registrar en el historial
         HistorialPrestamos.objects.create(
             alumno=self.alumno,
-            fecha_inicio=self.fecha_inicio,
-            fecha_termino=self.fecha_termino,
-            content_type=self.content_type,
-            object_id=self.object_id,
+            elemento=self.elemento,
+            fecha_prestamo=self.fecha_prestamo,
+            fecha_devolucion=self.fecha_devolucion,
         )
-        self.delete()
+
+    # Calcular cuanto queda para que finalize el prestamo
+    @property
+    def duracion(self):
+        if self.fecha_devolucion:
+            return (self.fecha_devolucion - self.fecha_prestamo).days
+        return (now() - self.fecha_prestamo).days
 
     def __str__(self):
-        return f"Préstamo - {self.alumno} ({self.elemento})"
+        return f"Préstamo: {self.elemento} a {self.alumno} el {self.fecha_prestamo.strftime('%d/%m/%Y')}"
 
 
 # Modelo HistorialPrestamos
 class HistorialPrestamos(models.Model):
-    alumno = models.ForeignKey(Alumno, on_delete=models.CASCADE)
-    fecha_inicio = models.DateField()
-    fecha_termino = models.DateField()
-
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    elemento = GenericForeignKey("content_type", "object_id")
+    id = models.AutoField(primary_key=True)  # Campo ID automático y secuencial
+    alumno = models.ForeignKey(
+        Alumno, on_delete=models.SET_NULL, null=True, related_name="historial_prestamos"
+    )
+    elemento = models.ForeignKey(
+        ElementoDAE,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="historial_prestamos",
+    )
+    fecha_prestamo = models.DateTimeField()
+    fecha_devolucion = models.DateTimeField()
 
     def __str__(self):
-        return f"Historial - {self.alumno} ({self.elemento})"
+        return (
+            f"Historial: {self.elemento} de {self.alumno} "
+            f"({self.fecha_prestamo.strftime('%d/%m/%Y')} - {self.fecha_devolucion.strftime('%d/%m/%Y')})"
+        )

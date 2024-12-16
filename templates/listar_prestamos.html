@@ -1,0 +1,41 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container mt-5">
+  <h1 class="text-center mb-4">Listado de Préstamos 📋</h1>
+
+  {% if prestamos %}
+  <table class="table table-striped table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>#</th>
+        <th>Alumno</th>
+        <th>Tipo de Préstamo</th>
+        <th>Elemento Prestado</th>
+        <th>Fecha de Préstamo</th>
+        <th>Fecha de Devolución</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prestamo in prestamos %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ prestamo.alumno.nombre }} {{ prestamo.alumno.apellido }}</td>
+        <td>
+          {% if prestamo.libro %} Libro {% elif prestamo.juego_de_mesa %} Juego
+          de Mesa {% endif %}
+        </td>
+        <td>
+          {% if prestamo.libro %} {{ prestamo.libro.titulo }} {% elif
+          prestamo.juego_de_mesa %} {{ prestamo.juego_de_mesa.nombre }} {% endif
+          %}
+        </td>
+        <td>{{ prestamo.fecha_prestamo|date:"d/m/Y" }}</td>
+        <td>{{ prestamo.fecha_devolucion|date:"d/m/Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-center text-danger">No hay préstamos registrados. 😔</p>
+  {% endif %}
+</div>
+{% endblock %}

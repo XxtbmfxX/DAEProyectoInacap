@@ -1,12 +1,11 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LogoutView
 from django.contrib.auth import authenticate, login
-from django.urls import reverse_lazy
-from django.views.generic.edit import FormView
 from django.contrib import messages
-from .forms import PrestamoForm
+
 from .models import Prestamo
+from .forms import PrestamoForm, LibroForm, AlumnoForm, JuegoDeMesaForm
 
 
 def is_admin(user):
@@ -25,10 +24,13 @@ def login_page(request):
 
         if user is not None:
             login(request, user)
+            messages.success(request, f"¡Bienvenido, {user.username}! 😊")
             return redirect("home")
         else:
-            error = "Usuario o contraseña inválidos. Por favor, intenta nuevamente. 🙁"
-            return render(request, "login.html", {"error": error})
+            messages.error(
+                request,
+                "Usuario o contraseña inválidos. Por favor, intenta nuevamente. 🙁",
+            )
     return render(request, "login.html")
 
 
@@ -38,78 +40,80 @@ def bienvenida(request):
 
 @login_required
 def landing_page(request):
-    return render(request, "main.html")
+    tablaPrestamos = Prestamo.objects.all()
+    print(tablaPrestamos)
+    return render(request, "main.html", {"datos": tablaPrestamos})
 
 
-# Decorador para validar que el usuario sea administrador
 @login_required
-@user_passes_test(is_admin)  # Redirige al home si no es admin
-def crear_prestamo_view(request):
+@user_passes_test(is_admin)
+def crear_prestamo(request):
     if request.method == "POST":
         form = PrestamoForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, "Préstamo creado exitosamente.")
-            return redirect("home")  # Redirige después de crear el préstamo
+            messages.success(request, "Préstamo creado con éxito. 📚✅")
+            return redirect("landing_page")
         else:
-            messages.error(request, "Corrige los errores en el formulario.")
+            messages.error(
+                request,
+                "Error al crear el préstamo. Por favor, revisa los datos ingresados. ❌",
+            )
     else:
         form = PrestamoForm()
 
+    return render(request, "form_prestamo.html", {"form": form})
+
+
+@login_required
+@user_passes_test(is_admin)
+def crear_libro(request):
+    if request.method == "POST":
+        form = LibroForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Libro agregado correctamente. 📖✅")
+            return redirect("landing_page")
+        else:
+            messages.error(request, "No se pudo agregar el libro. ❌")
+    else:
+        form = LibroForm()
+
     return render(
         request,
-        "form_prestamo.html",
-        {
-            "form": form,
-        },
+        "form_base.html",
+        {"form": form, "titulo": "Agregar un Nuevo Libro 📚", "boton": "Guardar Libro"},
     )
+    # return render(request, "form_libro.html", {"form": form})
 
 
-# @login_required
-# @user_passes_test(is_admin)
-# def create_cliente(request):
-#     if request.method == "POST":
-#         form = ClienteForm(request.POST)
-#         if form.is_valid():
-#             form.save()
-#             return redirect("read_clientes")
-#     else:
-#         form = ClienteForm()
-#     return render(request, "create_form.html", {"form": form})
+@login_required
+def crear_alumno(request):
+    if request.method == "POST":
+        form = AlumnoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Alumno agregado correctamente. 👨‍🎓✅")
+            return redirect(
+                "landing_page"
+            )  # Redirigir a la página principal después de guardar
+        else:
+            messages.error(
+                request,
+                "No se pudo agregar el alumno. Por favor, revisa los datos ingresados. ❌",
+            )
+    else:
+        form = AlumnoForm()
+
+    return render(request, "crear_alumno.html", {"form": form})
 
 
-# @login_required
-# def read_clientes(request):
-#     query = request.GET.get("q", "")
-#     if query:
-#         clientes = Cliente.objects.filter(nombre__icontains=query)
-#     else:
-#         clientes = Cliente.objects.all()
-#     return render(request, "read.html", {"clientes": clientes, "query": query})
-
-
-# @login_required
-# @user_passes_test(is_admin)
-# def update_cliente(request, pk):
-#     cliente = get_object_or_404(Cliente, pk=pk)
-#     if request.method == "POST":
-#         form = ClienteForm(request.POST, instance=cliente)
-#         if form.is_valid():
-#             form.save()
-#             return redirect("read_clientes")
-#     else:
-#         form = ClienteForm(instance=cliente)
-#     return render(request, "update_form.html", {"form": form})
-
-
-# @login_required
-# @user_passes_test(is_admin)
-# def delete_cliente(request, pk):
-#     cliente = get_object_or_404(Cliente, pk=pk)
-#     if request.method == "POST":
-#         cliente.delete()
-#         return redirect("read_clientes")
-#     return render(request, "delete_confirm.html", {"cliente": cliente})
+@login_required
+def listar_prestamos(request):
+    prestamos = Prestamo.objects.select_related(
+        "alumno", "libro", "juego_de_mesa"
+    )  # Evitar consultas N+1
+    return render(request, "listar_prestamos.html", {"prestamos": prestamos})
 
 
 def testing(request):
