@@ -1,4 +1,4 @@
-{% extends 'base.html' %} {% block content %}
+{% extends 'main.html' %} {% block content %}
 <div class="container mt-5">
   <h1 class="text-center mb-4">Registrar Nuevo Alumno 👨‍🎓</h1>
 
@@ -6,7 +6,7 @@
     {% csrf_token %}
     <div class="mb-3">{{ form.as_p }}</div>
     <button type="submit" class="btn btn-primary">Guardar Alumno</button>
-    <a href="{% url 'landing_page' %}" class="btn btn-secondary">Cancelar</a>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>
 {% endblock %}

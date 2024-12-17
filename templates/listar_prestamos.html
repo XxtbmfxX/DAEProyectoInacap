@@ -1,4 +1,4 @@
-{% extends 'base.html' %} {% block content %}
+{% block content %}
 <div class="container mt-5">
   <h1 class="text-center mb-4">Listado de Préstamos 📋</h1>
 
@@ -25,8 +25,8 @@
         </td>
         <td>
           {% if prestamo.libro %} {{ prestamo.libro.titulo }} {% elif
-          prestamo.juego_de_mesa %} {{ prestamo.juego_de_mesa.nombre }} {% endif
-          %}
+          prestamo.juego_de_mesa %} {{ prestamo.juego_de_mesa.nombre }}
+          {%endif%}
         </td>
         <td>{{ prestamo.fecha_prestamo|date:"d/m/Y" }}</td>
         <td>{{ prestamo.fecha_devolucion|date:"d/m/Y" }}</td>

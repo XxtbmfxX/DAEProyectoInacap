@@ -4,41 +4,54 @@ from .models import Prestamo, Libro, JuegoDeMesa, Alumno, validar_rut
 
 
 class PrestamoForm(forms.ModelForm):
+    tipo_elemento = forms.ChoiceField(
+        choices=[("libro", "Libro"), ("juego", "Juego de Mesa")],
+        label="Tipo de elemento",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    elemento_id = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+
     class Meta:
         model = Prestamo
-        fields = ["alumno", "elemento", "fecha_prestamo"]
+        fields = ["alumno", "tipo_elemento", "fecha_inicio"]
         widgets = {
             "alumno": forms.Select(attrs={"class": "form-control"}),
-            "elemento": forms.Select(attrs={"class": "form-control"}),
-            "fecha_prestamo": forms.DateTimeInput(
+            "fecha_inicio": forms.DateTimeInput(
+                attrs={"class": "form-control", "type": "datetime-local"}
+            ),
+            "fecha_termino": forms.DateTimeInput(
                 attrs={"class": "form-control", "type": "datetime-local"}
             ),
         }
         labels = {
             "alumno": "Alumno",
-            "elemento": "Elemento a prestar (Libro o Juego)",
-            "fecha_prestamo": "Fecha del préstamo",
+            "fecha_inicio": "Fecha de préstamo",
+            "fecha_termino": "Fecha de termino",
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Filtrar los elementos disponibles (no prestados)
-        # Hacemos un query a la base de datos
-        elementos_disponibles = list(Libro.objects.filter(prestado=False)) + list(
-            JuegoDeMesa.objects.filter(prestado=False)
-        )
-        self.fields["elemento"].queryset = elementos_disponibles
-
-    # Validaciones extra
     def clean(self):
         cleaned_data = super().clean()
+        tipo_elemento = cleaned_data.get("tipo_elemento")
         alumno = cleaned_data.get("alumno")
-        elemento = cleaned_data.get("elemento")
 
-        if not alumno:
-            self.add_error("alumno", "Debe seleccionar un alumno válido.")
+        # Validar que el tipo de elemento sea válido
+        if tipo_elemento not in ["libro", "juego"]:
+            raise forms.ValidationError("Debes seleccionar un tipo de elemento válido.")
+
+        # Seleccionar automáticamente un elemento disponible
+        if tipo_elemento == "libro":
+            elemento = Libro.objects.filter(prestado=False).first()
+        else:
+            elemento = JuegoDeMesa.objects.filter(prestado=False).first()
+
         if not elemento:
-            self.add_error("elemento", "Debe seleccionar un libro o juego disponible.")
+            raise forms.ValidationError(
+                f"No hay {tipo_elemento}s disponibles para préstamo en este momento."
+            )
+
+        # Agregar el elemento al formulario
+        cleaned_data["elemento_id"] = elemento.id
+        return cleaned_data
 
 
 class AlumnoForm(forms.ModelForm):
@@ -73,7 +86,7 @@ class AlumnoForm(forms.ModelForm):
 class LibroForm(forms.ModelForm):
     class Meta:
         model = Libro
-        fields = ["nombre", "autor"]
+        fields = ["titulo", "autor"]
         widgets = {
             "nombre": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Nombre del libro"}
@@ -83,7 +96,7 @@ class LibroForm(forms.ModelForm):
             ),
         }
         labels = {
-            "nombre": "Nombre del libro",
+            "titulo": "Nombre del libro",
             "autor": "Autor",
         }
 
